@@ -2,84 +2,58 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"os"
-	"strings"
 
-	"golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
 )
 
 func main() {
-	price := make([]string, 0)
-	for _, url := range os.Args[1:] {
-		links, err := findLinks(url)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "parse: %v\n", err)
-		}
-		fmt.Println()
-		for i, link := range links {
-			if string(link) == "₸" {
-				// if len(links[i-2]) == 3 {
-				price = append(price, string(links[i-2])+string(links[i-1])+string(links[i]))
-
-				// }
-
-			}
-
-		}
-
-	}
-
-	for _, v := range price {
-		if len(v) == 10 {
-			fmt.Println(v)
-		}
-	}
-
+	// JoomTovar()
+	KaspiTovar()
 }
 
-func findLinks(url string) ([]string, error) {
-	resp, err := http.Get(url)
+func JoomTovar() {
+	url := "https://www.joom.com/ru/products/62f661838ed09b01ebd4e0e2"
+	res, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("getting %s: %s", url, resp.Status)
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		log.Fatalf("status code error:  %d %s", res.StatusCode, res.Status)
 	}
-
-	doc, err := html.Parse(resp.Body)
-	resp.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("parsing %s as HTML: %v", url, err)
+		log.Fatal(err)
 	}
+	linkAll := doc.Find(".content___QyukV").Find(".label___Z2o2Y")
+	productName := doc.Find(".card___XVq8N").Find(".name___uxWcB")
+	name, _ := productName.Html()
 
-	return visit(nil, doc), nil
+	price, _ := linkAll.Html()
+	fmt.Printf("Товар %s сейчас в состоянии %s", name, price)
+
 }
-
-func visit(links []string, n *html.Node) []string {
-	data := strings.Split(n.Data, " ")
-
-	for _, v := range data {
-		links = append(links, string(v))
-		// fmt.Println(string(v), i)
+func KaspiTovar() {
+	url := "https://kaspi.kz/shop/nur-sultan/c/smartphones/?q=%3Acategory%3ASmartphones%3AmanufacturerName%3AApple%3ASmartphones*Series%3AApple%20iPhone%2014&sort=price-asc"
+	res, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	// if n.Type == html.ElementNode && n.Data == "spasn" {
-
-	// 	for _, a := range n.Attr {
-
-	// 		// if a.Key == "" {
-	// 		fmt.Println(a.Key)
-	// 		links = append(links, a.Val)
-	// 		// }
-	// 	}
-	// }
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		links = visit(links, c)
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		log.Fatalf("status code error:  %d %s", res.StatusCode, res.Status)
 	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	linkAll := doc.Find(".item-card__debet ").Find(".item-card__prices-price")
+	productName := doc.Find(".item-card__name")
+	name, _ := productName.Html()
 
-	return links
+	price, _ := linkAll.Html()
+	fmt.Println(name, price)
+
 }
